@@ -20,7 +20,7 @@ app.post("/reset-password", async (req, res) => {
   try {
     // Launch Puppeteer browser in non-headless mode
     browser = await puppeteer.launch({
-      headless: false, // Run in non-headless mode
+      headless: true, // Run in non-headless mode
       args: ["--no-sandbox", "--disable-setuid-sandbox"], // Required for some environments
     });
 
