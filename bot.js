@@ -49,7 +49,7 @@ app.post("/reset-password", async (req, res) => {
     }
 
     // Ensure request is processed
-    await page.waitForTimeout(3000);
+     await new Promise(resolve => setTimeout(resolve, 3000));
 
     if (errorMessage) {
       console.error(`❌ Netflix Error: ${errorMessage}`);
