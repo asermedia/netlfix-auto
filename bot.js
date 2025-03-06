@@ -3,16 +3,30 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import puppeteer from "puppeteer";
 
-const PORT = 8000;
+const PORT = process.env.PORT || 8000;
 const app = express();
+
 app.use(cors({ origin: "*" }));
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Validate email format
+const validateEmail = (email) => {
+  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return regex.test(email);
+};
+
 app.post("/reset-password", async (req, res) => {
   const { email } = req.body;
-  if (!email) return res.status(400).json({ message: "Email is required" });
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  if (!validateEmail(email)) {
+    return res.status(400).json({ message: "Invalid email format" });
+  }
 
   console.log("Received request with email:", email);
 
@@ -20,13 +34,13 @@ app.post("/reset-password", async (req, res) => {
   try {
     console.log("🚀 Launching Puppeteer...");
     browser = await puppeteer.launch({
-      headless: true, // Run in headless mode for performance
+      headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"],
-      executablePath: puppeteer.executablePath(), // Ensures compatibility on Railway
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
     });
 
     const page = await browser.newPage();
-    await page.goto("https://www.netflix.com/loginhelp", { waitUntil: "networkidle2" });
+    await page.goto("https://www.netflix.com/loginhelp", { waitUntil: "networkidle2", timeout: 60000 });
 
     // Wait for the email input field
     await page.waitForSelector('input[name="forgot_password_input"]', { timeout: 120000 });
@@ -38,18 +52,18 @@ app.post("/reset-password", async (req, res) => {
     await page.click('button[data-uia="action_forgot_password"]');
     console.log("📩 Email entered and 'Email Me' button clicked!");
 
-    // Wait a short time to check for Netflix errors
+    // Check for Netflix errors
     const errorSelector = 'div[data-uia="error-message-container"]';
     let errorMessage = null;
     try {
-      await page.waitForSelector(errorSelector, { timeout: 5000 }); // Detect error
-      errorMessage = await page.$eval(errorSelector, el => el.innerText.trim());
+      await page.waitForSelector(errorSelector, { timeout: 5000 });
+      errorMessage = await page.$eval(errorSelector, (el) => el.innerText.trim());
     } catch {
       console.log("✅ No Netflix error message detected.");
     }
 
-    // Ensure request is processed
-     await new Promise(resolve => setTimeout(resolve, 3000));
+    // Wait for the request to be processed
+    await new Promise((resolve) => setTimeout(resolve, 6000));
 
     if (errorMessage) {
       console.error(`❌ Netflix Error: ${errorMessage}`);
